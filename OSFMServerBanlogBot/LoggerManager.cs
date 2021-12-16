@@ -33,13 +33,13 @@ namespace OSFMServerBanlogBot
             }
         }
 
-        public static async Task UserBanned(SocketUser user, SocketGuild guild)
+        public static async Task UserBanned(IUser user, SocketGuild guild)
             => await NewLogEntry(user, guild, ActionType.Ban);
 
-        public static async Task UserUnbanned(SocketUser user, SocketGuild guild)
+        public static async Task UserUnbanned(IUser user, SocketGuild guild)
             => await NewLogEntry(user, guild, ActionType.Unban);
 
-        private static async Task NewLogEntry(SocketUser user, SocketGuild guild, ActionType action)
+        public static async Task NewLogEntry(IUser user, SocketGuild guild, ActionType action)
         {
             try
             {

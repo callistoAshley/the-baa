@@ -1,13 +1,16 @@
 ﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
+using System.IO;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 using Discord.Commands;
 using Discord;
 using Discord.Net;
-using System.Threading.Tasks;
-using System.IO;
+using Discord.Rest;
 using Discord.WebSocket;
-using System.Text.RegularExpressions;
+
 
 namespace OSFMServerBanlogBot
 {
@@ -22,16 +25,38 @@ namespace OSFMServerBanlogBot
         [Command("resync")]
         public async Task Resync(int limit = 100)
         {
-            await foreach (var v in Context.Guild.GetAuditLogsAsync(100))
+            int addedCases = 0;
+
+            await foreach (var v in Context.Guild.GetAuditLogsAsync(limit))
             {
-                foreach (var logEntry in v)
+                foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban))
                 {
-                    if (logEntry.Action == ActionType.Ban)
+                    object data = null;
+                    IUser target = null;
+
+                    switch (logEntry.Action)
                     {
-                        
+                        case ActionType.Ban:
+                            data = logEntry.Data as BanAuditLogData;
+                            target = ((BanAuditLogData)data).Target;
+                            break;
+                        case ActionType.Unban:
+                            data = logEntry.Data as UnbanAuditLogData;
+                            target = ((UnbanAuditLogData)data).Target;
+                            break;
+                    }
+
+                    if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
+                        (BanlogEntry b) => b.user == target.Id))
+                    {
+                        await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
+                        addedCases++;
                     }
                 }
             }
+
+            await Context.Message.Channel.SendMessageAsync(
+                $"Found {addedCases} bans/unbans in the audit log that didn't have a matching target in the server's banlogs");
         }
 
         [Command("reason")]

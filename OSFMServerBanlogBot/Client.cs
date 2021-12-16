@@ -75,9 +75,10 @@ namespace OSFMServerBanlogBot
 
                 // return here if the user running the command isn't me or isn't the owner of the server
                 // i'd check if the user has admin too but i forgot how to iterate through the priviliges
-                if (message.Author.Id != 521073234301550632 || message.Author.Id != context.Guild.OwnerId)
+                if (message.Author.Id != 521073234301550632 && message.Author.Id != context.Guild.OwnerId)
                 {
                     await context.Channel.SendMessageAsync("Sorry, you need to be the developer of the bot or the owner of the server to use its commands.");
+                    return;
                 }
 
                 Console.WriteLine($"{message.Author} executing command {message.Content}");
