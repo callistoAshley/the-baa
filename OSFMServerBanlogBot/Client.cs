@@ -15,7 +15,7 @@ namespace OSFMServerBanlogBot
     {
         // the client - this is how we log in and hook the right events
         public static DiscordSocketClient client = new DiscordSocketClient();
-        private static CommandService commandService = new CommandService();
+        public static CommandService commandService = new CommandService();
 
         public static async Task Login()
         {
