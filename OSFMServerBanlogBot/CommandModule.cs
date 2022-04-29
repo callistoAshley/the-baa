@@ -5,12 +5,12 @@ using System.IO;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Reflection;
 using Discord.Commands;
 using Discord;
 using Discord.Net;
 using Discord.Rest;
 using Discord.WebSocket;
-
 
 namespace OSFMServerBanlogBot
 {
@@ -20,37 +20,94 @@ namespace OSFMServerBanlogBot
     // which is pretty neat i think
     public class CommandModule : ModuleBase<SocketCommandContext>
     {
+        [Command("help")]
+        public async Task Help(string command = "")
+        {
+            if (command == string.Empty)
+            {
+                await Context.Channel.SendMessageAsync($"**Commands:\n|** {string.Join("**\n|** ", Client.commandService.Commands.Select((CommandInfo c) => c.Name))}");
+            }
+            else
+            {
+                foreach (MethodInfo m in typeof(CommandModule).GetMethods())
+                {
+                    CommandAttribute c = (CommandAttribute)m.GetCustomAttribute(typeof(CommandAttribute));
+                    if (c != null)
+                    {
+                        CommandHelpAttribute help = (CommandHelpAttribute)m.GetCustomAttribute(typeof(CommandHelpAttribute));
+
+                        if (m != null) continue;
+                    }
+                }
+            }
+        }
+
         // i can't host this bot 24/7 so this command is here in case someone gets banned overnight
         // it just goes through the audit log and selects entries it missed
+        // emoji created as default filter; it just checks for this and does nothing
         [Command("resync")]
-        public async Task Resync(int limit = 100)
+        public async Task Resync(int limit = 100, ActionType filter = ActionType.EmojiCreated)
         {
             int addedCases = 0;
 
-            await foreach (var v in Context.Guild.GetAuditLogsAsync(limit))
+            // TEMPORARY WORKAROUND change this later
+            if (filter == ActionType.EmojiCreated)
             {
-                foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban))
+                await foreach (var v in Context.Guild.GetAuditLogsAsync(limit))
                 {
-                    object data = null;
-                    IUser target = null;
-
-                    switch (logEntry.Action)
+                    foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban))
                     {
-                        case ActionType.Ban:
-                            data = logEntry.Data as BanAuditLogData;
-                            target = ((BanAuditLogData)data).Target;
-                            break;
-                        case ActionType.Unban:
-                            data = logEntry.Data as UnbanAuditLogData;
-                            target = ((UnbanAuditLogData)data).Target;
-                            break;
+                        object data = null;
+                        IUser target = null;
+
+                        switch (logEntry.Action)
+                        {
+                            case ActionType.Ban:
+                                data = logEntry.Data as BanAuditLogData;
+                                target = ((BanAuditLogData)data).Target;
+                                break;
+                            case ActionType.Unban:
+                                data = logEntry.Data as UnbanAuditLogData;
+                                target = ((UnbanAuditLogData)data).Target;
+                                break;
+                        }
+
+                        if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
+                            (BanlogEntry b) => b.user == target.Id))
+                        {
+                            await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
+                            addedCases++;
+                        }
                     }
-
-                    if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
-                        (BanlogEntry b) => b.user == target.Id))
+                }
+            }
+            else
+            {
+                await foreach (var v in Context.Guild.GetAuditLogsAsync(limit, actionType: filter))
+                {
+                    foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban))
                     {
-                        await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
-                        addedCases++;
+                        object data = null;
+                        IUser target = null;
+
+                        switch (logEntry.Action)
+                        {
+                            case ActionType.Ban:
+                                data = logEntry.Data as BanAuditLogData;
+                                target = ((BanAuditLogData)data).Target;
+                                break;
+                            case ActionType.Unban:
+                                data = logEntry.Data as UnbanAuditLogData;
+                                target = ((UnbanAuditLogData)data).Target;
+                                break;
+                        }
+
+                        if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
+                            (BanlogEntry b) => b.user == target.Id))
+                        {
+                            await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
+                            addedCases++;
+                        }
                     }
                 }
             }
@@ -127,6 +184,15 @@ namespace OSFMServerBanlogBot
         {
             await Context.Channel.SendMessageAsync($"I am in **{Client.client.Guilds.Count}** servers:\n" +
                 $"{string.Join("\n", Client.client.Guilds)}");
+        }
+
+        private class CommandHelpAttribute : Attribute
+        {
+            public string helpText;
+            public CommandHelpAttribute(string helpText)
+            {
+                this.helpText = helpText;
+            }
         }
     }
 }
