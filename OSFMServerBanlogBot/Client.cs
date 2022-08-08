@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Discord;
 using Discord.Net;
@@ -34,9 +35,13 @@ namespace OSFMServerBanlogBot
             // add events
             client.UserBanned += LoggerManager.UserBanned;
             client.UserUnbanned += LoggerManager.UserUnbanned;
+            client.UserLeft += LoggerManager.UserKicked; 
 
             // init json data
             LoggerManager.Init();
+
+            // display the version as the game
+            await client.SetGameAsync($"VERSION: {Constants.VERSION}");
 
             //await Task.Delay(-1);
         }
@@ -71,28 +76,30 @@ namespace OSFMServerBanlogBot
             {
                 // check whether the command has the right prefix
                 int prefixPos = 0;
-                if (!(message as SocketUserMessage).HasStringPrefix("baa ", ref prefixPos)) return;
-
-                // return here if the user running the command isn't me or isn't the owner of the server
-                // i'd check if the user has admin too but i forgot how to iterate through the priviliges
-                if (message.Author.Id != 521073234301550632 && message.Author.Id != context.Guild.OwnerId)
-                {
-                    await context.Channel.SendMessageAsync("Sorry, you need to be the developer of the bot or the owner of the server to use its commands.");
-                    return;
-                }
+                if (!(message as SocketUserMessage).HasStringPrefix("baab ", ref prefixPos)) return;
 
                 Console.WriteLine($"{message.Author} executing command {message.Content}");
 
+                // check for valid permissions
+                foreach (RequiredPermissionsAttribute perms in 
+                    commandService.Search(context, prefixPos).Commands[0].Command.Attributes.Select(
+                    x => x as RequiredPermissionsAttribute))
+                {
+                    if (perms != null && !perms.Valid((SocketGuildUser)context.User) 
+                        && !(perms.devOverride && context.User.Id == 521073234301550632))
+                    {
+                        await context.Channel.SendMessageAsync(
+                            "Invalid permissions. You need all of the following permissions to run that command:\n" +
+                            $"{Enum.Format(typeof(GuildPermission), perms.requiredPermissions, "g")}"
+                        );
+                        if (perms.devOverride) 
+                            await context.Channel.SendMessageAsync("You can also run this command if you are my developer.");
+                        return;
+                    }
+                }
+
                 // then execute the command
                 await commandService.ExecuteAsync(context: context, argPos: prefixPos, services: null);
-
-                // catch my idiocy
-                if (DateTime.Now >= new DateTime(2022, 2, 1))
-                {
-                    await context.Channel.SendMessageAsync("**FOR MY FUTURE SELF:**\n" +
-                        "Discord will require verification for message content intent after April 30, 2022. Because that's stinky, **check if" +
-                        "this has been merged: https://github.com/discord-net/Discord.Net/pull/1717**");
-                }
             }
             catch (Exception ex)
             {

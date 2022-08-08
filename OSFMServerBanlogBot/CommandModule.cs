@@ -46,6 +46,7 @@ namespace OSFMServerBanlogBot
         // it just goes through the audit log and selects entries it missed
         // emoji created as default filter; it just checks for this and does nothing
         [Command("resync")]
+        [RequiredPermissions(GuildPermission.ViewAuditLog | GuildPermission.BanMembers | GuildPermission.KickMembers)]
         public async Task Resync(int limit = 100, ActionType filter = ActionType.EmojiCreated)
         {
             int addedCases = 0;
@@ -117,6 +118,7 @@ namespace OSFMServerBanlogBot
         }
 
         [Command("reason")]
+        [RequiredPermissions(GuildPermission.ViewAuditLog | GuildPermission.BanMembers | GuildPermission.KickMembers)]
         public async Task Reason(string caseNumber, string reason)
         {
             // error handling
@@ -157,6 +159,7 @@ namespace OSFMServerBanlogBot
         }
 
         [Command("serverconfig")]
+        [RequiredPermissions(GuildPermission.Administrator, true)]
         public async Task ServerConfig(ulong logChannel, ulong exceptionLogChannel)
         {
             LoggerManager.serverConfigs.Add(Context.Guild.Id, new ServerConfig(logChannel, exceptionLogChannel));
@@ -167,9 +170,13 @@ namespace OSFMServerBanlogBot
         }
 
         [Command("invite")]
+        [RequiredPermissions(GuildPermission.Administrator)]
         public async Task Invite()
         {
-            await Context.Channel.SendMessageAsync(File.ReadAllText(Directory.GetCurrentDirectory() + "/invite.txt"));
+            if (Context.User.Id != 521073234301550632)
+                await Context.Channel.SendMessageAsync("https://tenor.com/view/chicken-nuggets-flush-flushed-gif-9918572");
+            else
+                await Context.Channel.SendMessageAsync(File.ReadAllText(Directory.GetCurrentDirectory() + "/invite.txt"));
         }
         
         // odd bits and bobs - some easter eggs, some joke stuff, some debugging stuff
@@ -184,6 +191,13 @@ namespace OSFMServerBanlogBot
         {
             await Context.Channel.SendMessageAsync($"I am in **{Client.client.Guilds.Count}** servers:\n" +
                 $"{string.Join("\n", Client.client.Guilds)}");
+        }
+
+        [Command("you_need_some_permissions_to_run_this_command")]
+        [RequiredPermissions(GuildPermission.ViewAuditLog | GuildPermission.ModerateMembers | GuildPermission.DeafenMembers)]
+        public async Task YouNeedSomePermissionsToRunThisCommand()
+        {
+            await Context.Channel.SendMessageAsync("https://tenor.com/view/yippee-happy-celebration-joy-confetti-gif-25557730");
         }
 
         private class CommandHelpAttribute : Attribute
