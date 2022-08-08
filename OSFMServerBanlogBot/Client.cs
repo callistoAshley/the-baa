@@ -35,7 +35,6 @@ namespace OSFMServerBanlogBot
             // add events
             client.UserBanned += LoggerManager.UserBanned;
             client.UserUnbanned += LoggerManager.UserUnbanned;
-            client.UserLeft += LoggerManager.UserKicked; 
 
             // init json data
             LoggerManager.Init();
