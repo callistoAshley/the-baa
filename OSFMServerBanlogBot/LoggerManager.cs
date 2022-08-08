@@ -55,6 +55,7 @@ namespace OSFMServerBanlogBot
                 // then get the associated audit log entry
                 // i'm so sorry this is horrifying to look at
                 RestAuditLogEntry auditLogEntry = guild.GetAuditLogsAsync(1, actionType: action).Select(x => x.ElementAt(0)).ElementAtAsync(0).Result;
+                if (auditLogEntry is null) return;
 
                 // add the new banlog entry to the server banlog
                 serverBanlogs[guild.Id].Add(new BanlogEntry(user.Id, action, auditLogEntry.Reason, auditLogEntry.User.Id));
