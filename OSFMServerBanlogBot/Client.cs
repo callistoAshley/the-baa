@@ -75,7 +75,7 @@ namespace OSFMServerBanlogBot
             {
                 // check whether the command has the right prefix
                 int prefixPos = 0;
-                if (!(message as SocketUserMessage).HasStringPrefix("baab ", ref prefixPos)) return;
+                if (!(message as SocketUserMessage).HasStringPrefix("baa ", ref prefixPos)) return;
 
                 Console.WriteLine($"{message.Author} executing command {message.Content}");
 

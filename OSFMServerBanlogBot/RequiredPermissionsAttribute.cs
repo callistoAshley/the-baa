@@ -8,7 +8,7 @@ namespace OSFMServerBanlogBot
     public class RequiredPermissionsAttribute : Attribute
     {
         public GuildPermission requiredPermissions;
-        public bool devOverride; // if true, allows myself to bypass the permissions check
+        public bool devOverride; // if true, allows myself to bypass the permissions check. this is only used for serverconfig and invite
 
         public RequiredPermissionsAttribute(GuildPermission requiredPermissions, bool devOverride = false)
         {

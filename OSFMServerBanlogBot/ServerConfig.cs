@@ -14,11 +14,13 @@ namespace OSFMServerBanlogBot
         public ulong logChannel;
         // the channel to log to if an exception is encountered
         public ulong exceptionLogChannel;
+        public int caseOffset;
 
-        public ServerConfig(ulong logChannel, ulong exceptionLogChannel)
+        public ServerConfig(ulong logChannel, ulong exceptionLogChannel, int caseOffset)
         {
             this.logChannel = logChannel;
             this.exceptionLogChannel = exceptionLogChannel;
+            this.caseOffset = caseOffset;
         }
     }
 }
