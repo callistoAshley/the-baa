@@ -49,128 +49,238 @@ namespace OSFMServerBanlogBot
         [RequiredPermissions(GuildPermission.ViewAuditLog | GuildPermission.BanMembers | GuildPermission.KickMembers)]
         public async Task Resync(int limit = 100, ActionType filter = ActionType.EmojiCreated)
         {
-            int addedCases = 0;
-
-            // TEMPORARY WORKAROUND change this later
-            if (filter == ActionType.EmojiCreated)
+            try
             {
-                await foreach (var v in Context.Guild.GetAuditLogsAsync(limit))
+                int addedCases = 0;
+
+                // TEMPORARY WORKAROUND change this later
+                if (filter == ActionType.EmojiCreated)
                 {
-                    foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban))
+                    await foreach (var v in Context.Guild.GetAuditLogsAsync(limit))
                     {
-                        object data = null;
-                        IUser target = null;
-
-                        switch (logEntry.Action)
+                        foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban))
                         {
-                            case ActionType.Ban:
-                                data = logEntry.Data as BanAuditLogData;
-                                target = ((BanAuditLogData)data).Target;
-                                break;
-                            case ActionType.Unban:
-                                data = logEntry.Data as UnbanAuditLogData;
-                                target = ((UnbanAuditLogData)data).Target;
-                                break;
-                        }
+                            object data = null;
+                            IUser target = null;
 
-                        if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
-                            (BanlogEntry b) => b.user == target.Id))
-                        {
-                            await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
-                            addedCases++;
+                            switch (logEntry.Action)
+                            {
+                                case ActionType.Ban:
+                                    data = logEntry.Data as BanAuditLogData;
+                                    target = ((BanAuditLogData)data).Target;
+                                    break;
+                                case ActionType.Unban:
+                                    data = logEntry.Data as UnbanAuditLogData;
+                                    target = ((UnbanAuditLogData)data).Target;
+                                    break;
+                            }
+
+                            if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
+                                (BanlogEntry b) => b.user == target.Id))
+                            {
+                                await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
+                                addedCases++;
+                            }
                         }
                     }
                 }
-            }
-            else
-            {
-                await foreach (var v in Context.Guild.GetAuditLogsAsync(limit, actionType: filter))
+                else
                 {
-                    foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban))
+                    await foreach (var v in Context.Guild.GetAuditLogsAsync(limit, actionType: filter))
                     {
-                        object data = null;
-                        IUser target = null;
-
-                        switch (logEntry.Action)
+                        foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban))
                         {
-                            case ActionType.Ban:
-                                data = logEntry.Data as BanAuditLogData;
-                                target = ((BanAuditLogData)data).Target;
-                                break;
-                            case ActionType.Unban:
-                                data = logEntry.Data as UnbanAuditLogData;
-                                target = ((UnbanAuditLogData)data).Target;
-                                break;
-                        }
+                            object data = null;
+                            IUser target = null;
 
-                        if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
-                            (BanlogEntry b) => b.user == target.Id))
-                        {
-                            await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
-                            addedCases++;
+                            switch (logEntry.Action)
+                            {
+                                case ActionType.Ban:
+                                    data = logEntry.Data as BanAuditLogData;
+                                    target = ((BanAuditLogData)data).Target;
+                                    break;
+                                case ActionType.Unban:
+                                    data = logEntry.Data as UnbanAuditLogData;
+                                    target = ((UnbanAuditLogData)data).Target;
+                                    break;
+                            }
+
+                            if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
+                                (BanlogEntry b) => b.user == target.Id))
+                            {
+                                await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
+                                addedCases++;
+                            }
                         }
                     }
                 }
-            }
 
-            await Context.Message.Channel.SendMessageAsync(
-                $"Found {addedCases} bans/unbans in the audit log that didn't have a matching target in the server's banlogs");
+                await Context.Message.Channel.SendMessageAsync(
+                    $"Found {addedCases} bans/unbans in the audit log that didn't have a matching target in the server's banlogs");
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.LogException(ex, Context.Guild);
+            }
         }
 
         [Command("reason")]
         [RequiredPermissions(GuildPermission.ViewAuditLog | GuildPermission.BanMembers | GuildPermission.KickMembers)]
         public async Task Reason(string caseNumber, string reason)
         {
-            // error handling
-            if (!LoggerManager.UsedServerConfig(Context.Guild) || !LoggerManager.serverBanlogs.ContainsKey(Context.Guild.Id))
+            try
             {
-                await Context.Message.ReplyAsync($"{Context.Guild} doesn't have any cases!");
-                return;
-            }
-
-            // first, check whether we're changing the reasons on a range of cases
-            // the syntax for this is (case number)-(case number) (eg baa reason 12-17 "don't really like them honestly")
-            Regex rangeMatch = new Regex(@"^\d+\-\d+");
-            if (rangeMatch.IsMatch(caseNumber))
-            {
-                // get the start of the range by replacing everything after - with an empty string
-                int caseStart = int.Parse(caseNumber.Substring(0, caseNumber.IndexOf('-')));//int.Parse(new Regex(@"\-.*?").Replace(caseNumber, string.Empty));
-                // then get the end of the range by doing the opposite
-                int caseEnd = int.Parse(new Regex(@"^.*?-").Replace(caseNumber, string.Empty));
-
-                int editedCases = 0;
-                for (int i = caseStart; i <= caseEnd; i++)
+                // error handling
+                if (!LoggerManager.UsedServerConfig(Context.Guild) || !LoggerManager.serverBanlogs.ContainsKey(Context.Guild.Id))
                 {
-                    // edit all of the cases between the range
-                    await LoggerManager.ChangeCaseReason(Context.Guild, i, reason, Context);
-                    editedCases++;
+                    await Context.Message.ReplyAsync($"{Context.Guild} doesn't have any cases!");
+                    return;
                 }
 
-                // done!
-                await Context.Channel.SendMessageAsync($"Edited {editedCases} cases.");
-            }
-            else
-            {
-                // edit the case
-                await LoggerManager.ChangeCaseReason(Context.Guild, int.Parse(caseNumber), reason, Context);
+                // first, check whether we're changing the reasons on a range of cases
+                // the syntax for this is (case number)-(case number) (eg baa reason 12-17 "don't really like them honestly")
+                Regex rangeMatch = new Regex(@"^\d+\-\d+");
+                if (rangeMatch.IsMatch(caseNumber))
+                {
+                    // this might take a while...
+                    using (IDisposable typingState = Context.Channel.EnterTypingState())
+                    {
+                        // get the start of the range by replacing everything after - with an empty string
+                        int caseStart = int.Parse(caseNumber.Substring(0, caseNumber.IndexOf('-')));//int.Parse(new Regex(@"\-.*?").Replace(caseNumber, string.Empty));
+                                                                                                    // then get the end of the range by doing the opposite
+                        int caseEnd = int.Parse(new Regex(@"^.*?-").Replace(caseNumber, string.Empty));
 
-                await Context.Channel.SendMessageAsync($"Edited case {caseNumber}.");
+                        int editedCases = 0;
+                        for (int i = caseStart; i <= caseEnd; i++)
+                        {
+                            // edit all of the cases between the range
+                            await LoggerManager.ChangeCaseReason(Context.Guild, i - LoggerManager.serverConfigs[Context.Guild.Id].caseOffset,
+                                reason, Context);
+                            editedCases++;
+                        }
+
+                        // done!
+                        await Context.Channel.SendMessageAsync($"Edited {editedCases} cases.");
+                    }
+                }
+                else
+                {
+                    // edit the case
+                    await LoggerManager.ChangeCaseReason(Context.Guild, int.Parse(caseNumber), reason, Context);
+
+                    await Context.Channel.SendMessageAsync($"Edited case {caseNumber}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.LogException(ex, Context.Guild);
             }
         }
 
         [Command("serverconfig")]
         [RequiredPermissions(GuildPermission.Administrator, true)]
-        public async Task ServerConfig(ulong logChannel, ulong exceptionLogChannel)
+        public async Task ServerConfig(ulong logChannel, ulong exceptionLogChannel, int caseOffset = 0)
         {
-            LoggerManager.serverConfigs.Add(Context.Guild.Id, new ServerConfig(logChannel, exceptionLogChannel));
-            
-            JsonManager.SerializeJson(Directory.GetCurrentDirectory() + $"/servers/{Context.Guild.Id}.json", LoggerManager.serverConfigs[Context.Guild.Id]);
+            try
+            {
+                // remove the server config at the guild's id if it exists (allows a server to use serverconfig more than once)
+                if (LoggerManager.serverConfigs.ContainsKey(Context.Guild.Id)) 
+                    LoggerManager.serverConfigs.Remove(Context.Guild.Id);
+                // then add it
+                LoggerManager.serverConfigs.Add(Context.Guild.Id, new ServerConfig(logChannel, exceptionLogChannel, caseOffset));
 
-            await Context.Channel.SendMessageAsync("Success!");
+                JsonManager.SerializeJson(Directory.GetCurrentDirectory() + $"/servers/{Context.Guild.Id}.json", LoggerManager.serverConfigs[Context.Guild.Id]);
+
+                await Context.Channel.SendMessageAsync("Success!\n" +
+                    $"Log Channel: #{Context.Guild.GetChannel(logChannel).Name}\n" +
+                    $"Error Logging Channel: #{Context.Guild.GetChannel(exceptionLogChannel).Name}\n" +
+                    $"Case Offset: {caseOffset}"
+                );
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.LogException(ex, Context.Guild);
+            }
+        }
+
+        [Command("serverconfig")]
+        [RequiredPermissions(GuildPermission.Administrator, true)]
+        // this serverconfig just says the server's config data rather than configuring it
+        public async Task ServerConfig()
+        {
+            try
+            {
+                if (!LoggerManager.serverConfigs.ContainsKey(Context.Guild.Id))
+                    await Context.Channel.SendMessageAsync("Your server hasn't used serverconfig yet. " +
+                        "The correct syntax is `baa serverconfig (logging channel id) (error logging channel id) (case offset)` (excluding the brackets.)");
+
+                await Context.Channel.SendMessageAsync(
+                    $"Logging Channel: {LoggerManager.serverConfigs[Context.Guild.Id].logChannel}\n" +
+                    $"Exception Logging Channel: {LoggerManager.serverConfigs[Context.Guild.Id].exceptionLogChannel}\n" +
+                    $"Case Offset: {LoggerManager.serverConfigs[Context.Guild.Id].caseOffset}"
+                );
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.LogException(ex, Context.Guild);
+            }
+        }
+
+        [Command("iddump")]
+        [RequiredPermissions(GuildPermission.ViewAuditLog | GuildPermission.BanMembers | GuildPermission.KickMembers)]
+        public async Task IdDump(string caseRange)
+        {
+            try
+            {
+                // error handling
+                if (!LoggerManager.UsedServerConfig(Context.Guild) || !LoggerManager.serverBanlogs.ContainsKey(Context.Guild.Id))
+                {
+                    await Context.Message.ReplyAsync($"{Context.Guild} doesn't have any cases!");
+                    return;
+                }
+
+                // oh boy it's boilerplate time! my favourite!
+                // TODO: add a CaseRange method to LoggerManager to avoid this
+                Regex rangeMatch = new Regex(@"^\d+\-\d+");
+                if (rangeMatch.IsMatch(caseRange))
+                {
+                    // get the start of the range by replacing everything after - with an empty string
+                    int caseStart = int.Parse(caseRange.Substring(0, caseRange.IndexOf('-')));
+                    // then get the end of the range by doing the opposite
+                    int caseEnd = int.Parse(new Regex(@"^.*?-").Replace(caseRange, string.Empty));
+
+                    // get the banlogs between caseStart and caseEnd
+                    IEnumerable<BanlogEntry> banlogEntries = LoggerManager.serverBanlogs[Context.Guild.Id].Where(x =>
+                        x.caseNumber >= caseStart - LoggerManager.serverConfigs[Context.Guild.Id].caseOffset
+                        && x.caseNumber <= caseEnd - LoggerManager.serverConfigs[Context.Guild.Id].caseOffset
+                    );
+
+                    // create a temporary file to write the ids to, then send that file.
+                    using (StreamWriter stream = File.CreateText(Directory.GetCurrentDirectory() + "/temp-iddump.txt"))
+                    {
+                        foreach (BanlogEntry entry in banlogEntries)
+                        {
+                            stream.WriteLine(entry.user);
+                        }
+                    }
+                    await Context.Channel.SendFileAsync(new FileAttachment(Directory.GetCurrentDirectory() + "/temp-iddump.txt"),
+                            $"Here are the ids for cases {caseStart} to {caseEnd}.");
+                    // finally, delete the file
+                    File.Delete(Directory.GetCurrentDirectory() + "/temp-iddump.txt");
+                }
+                else
+                {
+                    await Context.Channel.SendMessageAsync("Invalid range format (must be `baa iddump x-y`)");
+                }
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.LogException(ex, Context.Guild);
+            }
         }
 
         [Command("invite")]
-        [RequiredPermissions(GuildPermission.Administrator)]
+        [RequiredPermissions(GuildPermission.Administrator, true)]
         public async Task Invite()
         {
             if (Context.User.Id != 521073234301550632)

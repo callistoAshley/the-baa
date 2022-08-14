@@ -63,7 +63,7 @@ namespace OSFMServerBanlogBot
                 // then log it to the banlog channel
                 RestUserMessage msg = await logChannel.SendMessageAsync(
                     // the case is the number of entries in the server's banlogs after adding the new entry
-                    $"**{action}** | Case {serverBanlogs[guild.Id].Count}\n" +
+                    $"**{action}** | Case {serverBanlogs[guild.Id].Count + serverConfigs[guild.Id].caseOffset}\n" +
                     $"**User:** {user} (<@!{user.Id}>)\n" +
                     $"**Reason:** {auditLogEntry.Reason}\n" +
                     $"**Responsible Moderator:** {auditLogEntry.User}");
