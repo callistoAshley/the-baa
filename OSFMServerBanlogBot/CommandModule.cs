@@ -301,7 +301,7 @@ namespace OSFMServerBanlogBot
                 int usersBanned = 0;
                 foreach (string id in ids)
                 {
-                    await Context.Guild.AddBanAsync(ulong.Parse(id));
+                    await Context.Guild.AddBanAsync(ulong.Parse(id), reason: $"fileban command issued by {Context.Message.Author.Username}");
                     usersBanned++;
                 }
                 await Context.Channel.SendMessageAsync($"Banned {usersBanned} users.");
