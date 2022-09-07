@@ -11,6 +11,7 @@ using Discord;
 using Discord.Net;
 using Discord.Rest;
 using Discord.WebSocket;
+using System.Net.Http;
 
 namespace OSFMServerBanlogBot
 {
@@ -277,6 +278,34 @@ namespace OSFMServerBanlogBot
             {
                 ExceptionLogger.LogException(ex, Context.Guild);
             }
+        }
+
+        [Command("fileban")]
+        public async Task FileBan()
+        {
+            if (Context.Message.Attachments.Count == 0)
+            {
+                await Context.Channel.SendMessageAsync("Expected an attachment (a url will not suffice)");
+                return;
+            }
+
+            using (Context.Channel.EnterTypingState())
+            {
+                IEnumerable<string> ids;
+                using (HttpClient client = new HttpClient())
+                {
+                    HttpResponseMessage response = await client.GetAsync(Context.Message.Attachments.ElementAt(0).Url);
+                    ids = response.Content.ReadAsStringAsync().Result.Split("\n").Where(x => ulong.TryParse(x, out _));
+                }
+                await Context.Channel.SendMessageAsync($"Downloaded {ids.Count()} ids. We might be here for a while...");
+                int usersBanned = 0;
+                foreach (string id in ids)
+                {
+                    await Context.Guild.AddBanAsync(ulong.Parse(id));
+                    usersBanned++;
+                }
+                await Context.Channel.SendMessageAsync($"Banned {usersBanned} users.");
+            }   
         }
 
         [Command("invite")]

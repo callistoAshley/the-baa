@@ -126,7 +126,7 @@ namespace OSFMServerBanlogBot
 
             await guild.GetTextChannel(serverConfigs[guild.Id].logChannel).ModifyMessageAsync(banlogEntry.associatedMessage,
                 x => x.Content = 
-                    $"**{banlogEntry.action}** | Case {banlogEntry.caseNumber}\n" +
+                    $"**{banlogEntry.action}** | Case {banlogEntry.caseNumber + serverConfigs[guild.Id].caseOffset}\n" +
                     $"**User:** {banlogEntry.userName} (<@!{banlogEntry.user}>)\n" +
                     $"**Reason:** {reason}\n" +
                     $"**Responsible Moderator:** {/*Client.client.GetUser(banlogEntry.responsibleModerator).ToString() ?? */banlogEntry.responsibleModeratorName}");
