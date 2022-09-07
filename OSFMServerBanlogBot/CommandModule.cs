@@ -281,6 +281,7 @@ namespace OSFMServerBanlogBot
         }
 
         [Command("fileban")]
+        [RequiredPermissions(GuildPermission.BanMembers)]
         public async Task FileBan()
         {
             try
