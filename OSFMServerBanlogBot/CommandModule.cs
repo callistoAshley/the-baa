@@ -41,81 +41,50 @@ namespace OSFMServerBanlogBot
             }
         }
 
-        // i can't host this bot 24/7 so this command is here in case someone gets banned overnight
-        // it just goes through the audit log and selects entries it missed
-        // emoji created as default filter; it just checks for this and does nothing
+        // this just goes through the audit log and selects entries it missed, in the case that it crashed overnight or something
         [Command("resync")]
         [RequiredPermissions(GuildPermission.ViewAuditLog | GuildPermission.BanMembers | GuildPermission.KickMembers)]
-        public async Task Resync(int limit = 100, ActionType filter = ActionType.EmojiCreated)
+        public async Task Resync()
         {
             try
             {
                 int addedCases = 0;
 
-                // TEMPORARY WORKAROUND change this later
-                if (filter == ActionType.EmojiCreated)
+                await foreach (var v in Context.Guild.GetAuditLogsAsync(100))
                 {
-                    await foreach (var v in Context.Guild.GetAuditLogsAsync(limit))
+                    foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban
+                        || r.Action == ActionType.Kick))
                     {
-                        foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban))
+                        object data = null;
+                        IUser target = null;
+
+                        switch (logEntry.Action)
                         {
-                            object data = null;
-                            IUser target = null;
-
-                            switch (logEntry.Action)
-                            {
-                                case ActionType.Ban:
-                                    data = logEntry.Data as BanAuditLogData;
-                                    target = ((BanAuditLogData)data).Target;
-                                    break;
-                                case ActionType.Unban:
-                                    data = logEntry.Data as UnbanAuditLogData;
-                                    target = ((UnbanAuditLogData)data).Target;
-                                    break;
-                            }
-
-                            if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
-                                (BanlogEntry b) => b.user == target.Id))
-                            {
-                                await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
-                                addedCases++;
-                            }
+                            case ActionType.Ban:
+                                data = logEntry.Data as BanAuditLogData;
+                                target = ((BanAuditLogData)data).Target;
+                                break;
+                            case ActionType.Kick:
+                                data = logEntry.Data as KickAuditLogData;
+                                target = ((BanAuditLogData)data).Target;
+                                break;
+                            case ActionType.Unban:
+                                data = logEntry.Data as UnbanAuditLogData;
+                                target = ((UnbanAuditLogData)data).Target;
+                                break;
                         }
-                    }
-                }
-                else
-                {
-                    await foreach (var v in Context.Guild.GetAuditLogsAsync(limit, actionType: filter))
-                    {
-                        foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban))
+
+                        if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
+                            (BanlogEntry b) => b.user == target.Id))
                         {
-                            object data = null;
-                            IUser target = null;
-
-                            switch (logEntry.Action)
-                            {
-                                case ActionType.Ban:
-                                    data = logEntry.Data as BanAuditLogData;
-                                    target = ((BanAuditLogData)data).Target;
-                                    break;
-                                case ActionType.Unban:
-                                    data = logEntry.Data as UnbanAuditLogData;
-                                    target = ((UnbanAuditLogData)data).Target;
-                                    break;
-                            }
-
-                            if (!LoggerManager.serverBanlogs[Context.Guild.Id].Exists(
-                                (BanlogEntry b) => b.user == target.Id))
-                            {
-                                await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
-                                addedCases++;
-                            }
+                            await LoggerManager.NewLogEntry(target, Context.Guild, logEntry.Action);
+                            addedCases++;
                         }
                     }
                 }
 
                 await Context.Message.Channel.SendMessageAsync(
-                    $"Found {addedCases} bans/unbans in the audit log that didn't have a matching target in the server's banlogs");
+                        $"Found {addedCases} bans/unbans in the audit log that didn't have a matching target in the server's banlogs");
             }
             catch (Exception ex)
             {
