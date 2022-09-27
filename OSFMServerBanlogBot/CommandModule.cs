@@ -2,16 +2,14 @@
 using System.Linq;
 using System.Threading.Tasks;
 using System.IO;
+using System.Net.Http;
 using System.Collections.Generic;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Reflection;
 using Discord.Commands;
 using Discord;
-using Discord.Net;
 using Discord.Rest;
-using Discord.WebSocket;
-using System.Net.Http;
+using Octokit;
 
 namespace OSFMServerBanlogBot
 {
@@ -304,7 +302,7 @@ namespace OSFMServerBanlogBot
                     int usersBanned = 0;
                     foreach (string id in ids)
                     {
-                        await Context.Guild.AddBanAsync(ulong.Parse(id), reason: $"fileban command issued by {Context.Message.Author.Username}");
+                        await Context.Guild.AddBanAsync(ulong.Parse(id), reason: $"Fileban command issued by {Context.Message.Author.Username}");
                         usersBanned++;
                     }
                     await Context.Channel.SendMessageAsync($"Banned {usersBanned} users.");
@@ -325,6 +323,46 @@ namespace OSFMServerBanlogBot
             else
                 await Context.Channel.SendMessageAsync(File.ReadAllText(Directory.GetCurrentDirectory() + "/invite.txt"));
         }
+
+        [Command("update")]
+        [RequiredPermissions(GuildPermission.Administrator, true)]
+        public async Task Update()
+        {
+            // first ensure that the user calling the command is either myself or the bot host
+            if (Context.User.Id != 521073234301550632 || Context.User.Id != 351871502460649485)
+            {
+                await Context.Channel.SendMessageAsync("https://tenor.com/view/toad-toad-rip-toad-rocket-toad-super-mario-toad-mario-gif-22448762");
+                return;
+            }
+
+            bool restart = false; // set to true if an update is ready to be installed
+            using (Context.Channel.EnterTypingState())
+            {
+                GitHubClient client = new GitHubClient(new ProductHeaderValue("samelgamedev-the-baa"));
+                Release latestRelease = client.Repository.Release.GetAll("samelgamedev", "the-baa").Result[0];
+                if (latestRelease == null)
+                    await Context.Channel.SendMessageAsync("Couldn't download latest release; I must be ratelimited.");
+                await Context.Channel.SendMessageAsync($"Latest release tag: {latestRelease.TagName}");
+                if (latestRelease.CreatedAt.DateTime > new FileInfo(AppDomain.CurrentDomain.FriendlyName).CreationTimeUtc)
+                {
+                    restart = true;
+                    await Context.Channel.SendMessageAsync("The latest release is newer than my own binary. " +
+                        "I'll be down for a few minutes while I install it.");
+                    // .... then start the python script
+                }
+                else
+                {
+                    await Context.Channel.SendMessageAsync("The latest release is older than my own binary. " +
+                        "Nothing to do.");
+                }
+
+                // warn about rate limit info, just in case
+                RateLimit rateLimitInfo = client.GetLastApiInfo().RateLimit;
+                await Context.Channel.SendMessageAsync($"Warning: I only have {rateLimitInfo.Remaining} uses of the GitHub API remaining." +
+                    $"My uses will reset at {rateLimitInfo.Reset.DateTime} (UTC)");
+            }
+            if (restart) Environment.Exit(0);
+        }
         
         // odd bits and bobs - some easter eggs, some joke stuff, some debugging stuff
         [Command("samelcave")]
@@ -338,13 +376,6 @@ namespace OSFMServerBanlogBot
         {
             await Context.Channel.SendMessageAsync($"I am in **{Client.client.Guilds.Count}** servers:\n" +
                 $"{string.Join("\n", Client.client.Guilds)}");
-        }
-
-        [Command("you_need_some_permissions_to_run_this_command")]
-        [RequiredPermissions(GuildPermission.ViewAuditLog | GuildPermission.ModerateMembers | GuildPermission.DeafenMembers)]
-        public async Task YouNeedSomePermissionsToRunThisCommand()
-        {
-            await Context.Channel.SendMessageAsync("https://tenor.com/view/yippee-happy-celebration-joy-confetti-gif-25557730");
         }
 
         private class CommandHelpAttribute : Attribute
