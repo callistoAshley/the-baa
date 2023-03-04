@@ -7,7 +7,12 @@ namespace OSFMServerBanlogBot
 {
     class Program
     {
-        static async void Main(string[] args)
+        static void Main(string[] args)
+        {
+            ILeaveMyCodeAloneFor6MonthsAndByWhimOfCosmicIronyItStopsCompiling(args).GetAwaiter();
+        }
+
+        static async Task ILeaveMyCodeAloneFor6MonthsAndByWhimOfCosmicIronyItStopsCompiling(string[] args)
         {
             try
             {

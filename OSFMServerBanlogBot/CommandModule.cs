@@ -180,7 +180,7 @@ namespace OSFMServerBanlogBot
             {
                 if (!LoggerManager.serverConfigs.ContainsKey(Context.Guild.Id))
                     await Context.Channel.SendMessageAsync("Your server hasn't used serverconfig yet. " +
-                        "The correct syntax is `baa serverconfig (logging channel id) (error logging channel id) (case offset)` (excluding the brackets.)");
+                        "The correct syntax is `baa serverconfig (logging channel id) (error logging channel id) ([case offset])` (excluding the brackets.)");
 
                 await Context.Channel.SendMessageAsync(
                     $"Logging Channel: {LoggerManager.serverConfigs[Context.Guild.Id].logChannel}\n" +
