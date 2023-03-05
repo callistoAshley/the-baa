@@ -14,6 +14,9 @@ namespace OSFMServerBanlogBot
 
         static async Task ILeaveMyCodeAloneFor6MonthsAndByWhimOfCosmicIronyItStopsCompiling(string[] args)
         {
+            if (!Directory.Exists("banlogs")) Directory.CreateDirectory("banlogs");
+            if (!Directory.Exists("servers")) Directory.CreateDirectory("servers");
+
             try
             {
                 // log in
