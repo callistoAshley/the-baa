@@ -23,13 +23,17 @@ namespace OSFMServerBanlogBot
             // add server banlogs to the dictionary
             foreach (FileInfo f in new DirectoryInfo(Directory.GetCurrentDirectory() + "/banlogs").GetFiles())
             {
-                serverBanlogs.Add(ulong.Parse(f.Name.Replace(f.Extension, string.Empty)), (List<BanlogEntry>)JsonManager.DeserializeJson<List<BanlogEntry>>(f.FullName));
+                ulong guild = ulong.Parse(f.Name.Replace(f.Extension, string.Empty));
+                List<BanlogEntry> banlogs = (List<BanlogEntry>)JsonManager.DeserializeJson<List<BanlogEntry>>(f.FullName);
+                serverBanlogs.Add(guild, banlogs);
             }
 
             // then add server configs
             foreach (FileInfo f in new DirectoryInfo(Directory.GetCurrentDirectory() + "/servers").GetFiles())
             {
-                serverConfigs.Add(ulong.Parse(f.Name.Replace(f.Extension, string.Empty)), (ServerConfig)JsonManager.DeserializeJson<ServerConfig>(f.FullName));
+                ulong guild = ulong.Parse(f.Name.Replace(f.Extension, string.Empty));
+                ServerConfig config = (ServerConfig)JsonManager.DeserializeJson<ServerConfig>(f.FullName);
+                serverConfigs.Add(guild, config);
             }
         }
 
@@ -53,7 +57,6 @@ namespace OSFMServerBanlogBot
                 ISocketMessageChannel logChannel = guild.GetTextChannel(serverConfigs[guild.Id].logChannel);
 
                 // then get the associated audit log entry
-                // i'm so sorry this is horrifying to look at
                 RestAuditLogEntry auditLogEntry = guild.GetAuditLogsAsync(1, actionType: action).Select(x => x.ElementAt(0)).ElementAtAsync(0).Result;
                 if (auditLogEntry is null) return;
 
@@ -68,12 +71,13 @@ namespace OSFMServerBanlogBot
                     $"**Reason:** {auditLogEntry.Reason}\n" +
                     $"**Responsible Moderator:** {auditLogEntry.User}");
                 // set the new banlog entry's associated message to the msg's id and set the case number
-                serverBanlogs[guild.Id].Last().associatedMessage = msg.Id;
-                serverBanlogs[guild.Id].Last().caseNumber = serverBanlogs[guild.Id].Count;
+                BanlogEntry entry = serverBanlogs[guild.Id].Last();
+                entry.associatedMessage = msg.Id;
+                entry.caseNumber = serverBanlogs[guild.Id].Count;
                 // also set the names of the users responsible
                 // this is used in ChangeCaseReason as a fallback in case GetUser returns null
-                serverBanlogs[guild.Id].Last().userName = user.ToString();
-                serverBanlogs[guild.Id].Last().responsibleModeratorName = auditLogEntry.User.ToString();
+                entry.userName = user.ToString();
+                entry.responsibleModeratorName = auditLogEntry.User.ToString();
 
                 // serialize the server's banlog entries again
                 ReserializeBanlogs(guild);
@@ -82,7 +86,7 @@ namespace OSFMServerBanlogBot
             {
                 // their server must not have used serverconfig yet, just ignore it
                 // still log it to the console though
-                Console.WriteLine($"KeyNotFoundException in {guild}: {ex}");
+                Console.WriteLine($"KeyNotFoundException in {guild}: {ex}\n  (this server probably hasn't used serverconfig yet)");
             }
             catch (Exception ex)
             {
@@ -100,19 +104,22 @@ namespace OSFMServerBanlogBot
             JsonManager.SerializeJson(Directory.GetCurrentDirectory() + $"/banlogs/{guild.Id}.json", serverBanlogs[guild.Id]);
         }
 
-        public static async Task ChangeCaseReason(SocketGuild guild, int caseNum, string reason, SocketCommandContext context = null)
+        // returns true on success and false on failure
+        public static async Task<bool> ChangeCaseReason(SocketGuild guild, int caseNum, string reason, SocketCommandContext context = null)
         {
+            Console.WriteLine($"changing reason of case {caseNum} to {reason}");
+
             // error handling
             if (!UsedServerConfig(guild) || !serverBanlogs.ContainsKey(guild.Id))
             {
-                await context.Message.ReplyAsync($"{guild} doesn't have any cases!");
-                return;
+                await context.Channel.SendMessageAsync($"{guild} doesn't have any cases!");
+                return false;
             }
 
             if (caseNum > serverBanlogs[guild.Id].Count)
             {
-                await context.Message.ReplyAsync($"{caseNum} is out of range.");
-                return;
+                await context.Channel.SendMessageAsync($"{caseNum} is out of range.");
+                return false;
             }
 
             // get the associated banlog entry
@@ -133,6 +140,7 @@ namespace OSFMServerBanlogBot
 
             // reserialize banlogs
             ReserializeBanlogs(guild);
+            return true;
         }
     }
 }

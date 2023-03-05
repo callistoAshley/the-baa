@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Linq;
 using System.Threading.Tasks;
 using System.IO;
@@ -10,13 +11,10 @@ using Discord.Commands;
 using Discord;
 using Discord.Rest;
 using Octokit;
+using Discord.WebSocket;
 
 namespace OSFMServerBanlogBot
 {
-    // the library this bot uses, Discord.NET, reflects through the assembly and looks for types
-    // that derive from ModuleBase when it's looking for commands
-    // *then* it selects the methods in those types that have the Command attribute
-    // which is pretty neat i think
     public class CommandModule : ModuleBase<SocketCommandContext>
     {
         [Command("help")]
@@ -134,9 +132,13 @@ namespace OSFMServerBanlogBot
                 else
                 {
                     // edit the case
-                    await LoggerManager.ChangeCaseReason(Context.Guild, int.Parse(caseNumber), reason, Context);
-
-                    await Context.Channel.SendMessageAsync($"Edited case {caseNumber}.");
+                    if (await LoggerManager.ChangeCaseReason(Context.Guild, 
+                        int.Parse(caseNumber) - LoggerManager.serverConfigs[Context.Guild.Id].caseOffset, 
+                        reason, 
+                        Context))
+                    {
+                        await Context.Channel.SendMessageAsync($"Edited case {caseNumber}.");
+                    }
                 }
             }
             catch (Exception ex)
@@ -297,49 +299,92 @@ namespace OSFMServerBanlogBot
         [RequiredPermissions(GuildPermission.Administrator, true)]
         public async Task Update()
         {
-            // first ensure that the user calling the command is either myself or the bot host
-            if (Context.User.Id != 521073234301550632 || Context.User.Id != 351871502460649485)
+            try
             {
-                await Context.Channel.SendMessageAsync("https://tenor.com/view/toad-toad-rip-toad-rocket-toad-super-mario-toad-mario-gif-22448762");
-                return;
-            }
-
-            bool restart = false; // set to true if an update is ready to be installed
-            using (Context.Channel.EnterTypingState())
-            {
-                GitHubClient client = new GitHubClient(new ProductHeaderValue("samelgamedev-the-baa"));
-                Release latestRelease = client.Repository.Release.GetAll("samelgamedev", "the-baa").Result[0];
-                if (latestRelease == null)
-                    await Context.Channel.SendMessageAsync("Couldn't download latest release; I must be ratelimited.");
-                await Context.Channel.SendMessageAsync($"Latest release tag: {latestRelease.TagName}");
-                if (latestRelease.CreatedAt.DateTime > new FileInfo(AppDomain.CurrentDomain.FriendlyName).CreationTimeUtc)
+                // first ensure that the user calling the command is either myself or the bot host
+                if (Context.User.Id != 521073234301550632 || Context.User.Id != 351871502460649485)
                 {
-                    restart = true;
-                    await Context.Channel.SendMessageAsync("The latest release is newer than my own binary. " +
-                        "I'll be down for a few minutes while I install it.");
-                    // .... then start the python script
-                }
-                else
-                {
-                    await Context.Channel.SendMessageAsync("The latest release is older than my own binary. " +
-                        "Nothing to do.");
+                    await Context.Channel.SendMessageAsync("https://tenor.com/view/toad-toad-rip-toad-rocket-toad-super-mario-toad-mario-gif-22448762");
+                    return;
                 }
 
-                // warn about rate limit info, just in case
-                RateLimit rateLimitInfo = client.GetLastApiInfo().RateLimit;
-                await Context.Channel.SendMessageAsync($"Warning: I only have {rateLimitInfo.Remaining} uses of the GitHub API remaining." +
-                    $"My uses will reset at {rateLimitInfo.Reset.DateTime} (UTC)");
+                bool restart = false; // set to true if an update is ready to be installed
+                using (Context.Channel.EnterTypingState())
+                {
+                    GitHubClient client = new GitHubClient(new ProductHeaderValue("samelgamedev-the-baa"));
+                    Release latestRelease = client.Repository.Release.GetAll("samelgamedev", "the-baa").Result[0];
+                    if (latestRelease == null)
+                        await Context.Channel.SendMessageAsync("Couldn't download latest release; I must be ratelimited.");
+                    await Context.Channel.SendMessageAsync($"Latest release tag: {latestRelease.TagName}");
+                    if (latestRelease.CreatedAt.DateTime > new FileInfo(AppDomain.CurrentDomain.FriendlyName).CreationTimeUtc)
+                    {
+                        restart = true;
+                        await Context.Channel.SendMessageAsync("The latest release is newer than my own binary. " +
+                            "I'll be down for a few minutes while I install it.");
+                        // .... then start the python script
+                    }
+                    else
+                    {
+                        await Context.Channel.SendMessageAsync("The latest release is older than my own binary. " +
+                            "Nothing to do.");
+                    }
+
+                    // warn about rate limit info, just in case
+                    RateLimit rateLimitInfo = client.GetLastApiInfo().RateLimit;
+                    await Context.Channel.SendMessageAsync($"Warning: I only have {rateLimitInfo.Remaining} uses of the GitHub API remaining." +
+                        $"My uses will reset at {rateLimitInfo.Reset.DateTime} (UTC)");
+                }
+                if (restart) Environment.Exit(0);
             }
-            if (restart) Environment.Exit(0);
+            catch (Exception ex)
+            {
+                ExceptionLogger.LogException(ex, Context.Guild);
+            }
+        }
+
+        [Command("wipe")]
+        [RequiredPermissions(GuildPermission.Administrator, true)]
+        public async Task Wipe()
+        {
+            try
+            {
+                if (!File.Exists($"banlogs/{Context.Guild.Id}.json"))
+                {
+                    await Context.Channel.SendMessageAsync("This server has no cases.");
+                    return;
+                }
+
+                await Context.Channel.SendMessageAsync("This will delete ALL of the cases associated with this server. " +
+                    "Send the name of this server within 30 seconds to confirm.");
+                bool sendTimeoutMessage = true;
+
+                async Task MessageSent(SocketMessage message)
+                {
+                    if (message.Channel.Id != Context.Channel.Id) return;
+                    if (message.Content == Context.Guild.Name)
+                    {
+                        Console.WriteLine($"wiping cases in {Context.Guild.Id}");
+                        File.Delete($"banlogs/{Context.Guild.Id}.json");
+                        sendTimeoutMessage = false;
+                        await Context.Channel.SendMessageAsync("Deleted cases.");
+                    }
+                }
+
+                Client.client.MessageReceived += MessageSent;
+                new Thread(async () => 
+                {
+                    Thread.Sleep(new TimeSpan(0, 0, 30));
+                    Client.client.MessageReceived -= MessageSent;
+                    if (sendTimeoutMessage) await Context.Channel.SendMessageAsync("Timed out.");
+                }).Start();
+            }
+            catch (Exception ex)
+            {
+                ExceptionLogger.LogException(ex, Context.Guild);
+            }
         }
         
         // odd bits and bobs - some easter eggs, some joke stuff, some debugging stuff
-        [Command("samelcave")]
-        public async Task Samelcave()
-        {
-            await Context.Channel.SendMessageAsync((Client.client.GetGuild(796238499871195167) is null).ToString());
-        }
-
         [Command("servers")]
         public async Task Servers()
         {
