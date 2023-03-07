@@ -112,8 +112,8 @@ namespace OSFMServerBanlogBot
                     using (IDisposable typingState = Context.Channel.EnterTypingState())
                     {
                         // get the start of the range by replacing everything after - with an empty string
-                        int caseStart = int.Parse(caseNumber.Substring(0, caseNumber.IndexOf('-')));//int.Parse(new Regex(@"\-.*?").Replace(caseNumber, string.Empty));
-                                                                                                    // then get the end of the range by doing the opposite
+                        int caseStart = int.Parse(caseNumber.Substring(0, caseNumber.IndexOf('-')));
+                        // then get the end of the range by doing the opposite
                         int caseEnd = int.Parse(new Regex(@"^.*?-").Replace(caseNumber, string.Empty));
 
                         int editedCases = 0;
@@ -131,9 +131,16 @@ namespace OSFMServerBanlogBot
                 }
                 else
                 {
+                    if (!int.TryParse(caseNumber, out int c))
+                    {
+                        await Context.Channel.SendMessageAsync($"Failed to parse \"{caseNumber}\" to an integer. " +
+                            $"Ensure there are only numbers in the case identifier.");
+                        return;
+                    }
+
                     // edit the case
                     if (await LoggerManager.ChangeCaseReason(Context.Guild, 
-                        int.Parse(caseNumber) - LoggerManager.serverConfigs[Context.Guild.Id].caseOffset, 
+                        c - LoggerManager.serverConfigs[Context.Guild.Id].caseOffset, 
                         reason, 
                         Context))
                     {
@@ -384,12 +391,19 @@ namespace OSFMServerBanlogBot
             }
         }
         
-        // odd bits and bobs - some easter eggs, some joke stuff, some debugging stuff
+        // odd bits and bobs: some easter eggs, some jokes, some debugging stuff
         [Command("servers")]
         public async Task Servers()
         {
             await Context.Channel.SendMessageAsync($"I am in **{Client.client.Guilds.Count}** servers:\n" +
                 $"{string.Join("\n", Client.client.Guilds)}");
+        }
+
+        [Command("ping")]
+        public async Task Ping()
+        {
+            int time = (DateTimeOffset.UtcNow - Context.Message.Timestamp).Milliseconds;
+            await Context.Channel.SendMessageAsync($"Pong from the land down under! {time}ms");
         }
 
         private class CommandHelpAttribute : Attribute

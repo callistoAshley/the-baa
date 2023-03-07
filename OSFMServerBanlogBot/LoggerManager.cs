@@ -116,7 +116,7 @@ namespace OSFMServerBanlogBot
                 return false;
             }
 
-            if (caseNum > serverBanlogs[guild.Id].Count)
+            if (caseNum > serverBanlogs[guild.Id].Count || caseNum <= 0)
             {
                 await context.Channel.SendMessageAsync($"{caseNum} is out of range.");
                 return false;
