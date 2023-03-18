@@ -14,11 +14,14 @@ namespace OSFMServerBanlogBot
 
         static async Task ILeaveMyCodeAloneFor6MonthsAndByWhimOfCosmicIronyItStopsCompiling(string[] args)
         {
-            if (!Directory.Exists("banlogs")) Directory.CreateDirectory("banlogs");
-            if (!Directory.Exists("servers")) Directory.CreateDirectory("servers");
-
             try
             {
+                if (!Directory.Exists("banlogs")) Directory.CreateDirectory("banlogs");
+                if (!Directory.Exists("servers")) Directory.CreateDirectory("servers");
+
+                // init json data
+                LoggerManager.Init();
+
                 // log in
                 Client.Login().GetAwaiter().GetResult();
 
@@ -37,7 +40,7 @@ namespace OSFMServerBanlogBot
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"an exception was encountered:\n{ex}\nexiting..... :(");
+                Console.WriteLine($"an exception was encountered:\n==============\n{ex}\n==============\nexiting..... :(");
                 // then just exit
             }
             Console.ReadLine();
