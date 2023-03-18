@@ -107,6 +107,7 @@ namespace OSFMServerBanlogBot
         private static async Task Disconnected(Exception ex)
         {
             Console.WriteLine($"\n\nDisconnected! Exception:\n==============\n{ex}\n==============\nAttempting to reconnect.\n");
+            await client.StopAsync();
             await Login();
         }
     }
