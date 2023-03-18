@@ -216,8 +216,6 @@ namespace OSFMServerBanlogBot
                     return;
                 }
 
-                // oh boy it's boilerplate time! my favourite!
-                // TODO: add a CaseRange method to LoggerManager to avoid this
                 Regex rangeMatch = new Regex(@"^\d+\-\d+");
                 if (rangeMatch.IsMatch(caseRange))
                 {

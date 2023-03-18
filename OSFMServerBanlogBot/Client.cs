@@ -35,9 +35,7 @@ namespace OSFMServerBanlogBot
             // add events
             client.UserBanned += LoggerManager.UserBanned;
             client.UserUnbanned += LoggerManager.UserUnbanned;
-
-            // init json data
-            LoggerManager.Init();
+            client.Disconnected += Disconnected;
 
             // display the version as the game
             await client.SetGameAsync($"VERSION: {Constants.VERSION}");
@@ -104,6 +102,12 @@ namespace OSFMServerBanlogBot
             {
                 ExceptionLogger.LogException(ex, context.Guild);
             }
+        }
+
+        private static async Task Disconnected(Exception ex)
+        {
+            Console.WriteLine($"\n\nDisconnected! Exception:\n==============\n{ex}\n==============\nAttempting to reconnect.\n");
+            await Login();
         }
     }
 }
