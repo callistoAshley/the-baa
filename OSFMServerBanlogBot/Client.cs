@@ -24,7 +24,8 @@ namespace OSFMServerBanlogBot
             string token = File.ReadAllText(Directory.GetCurrentDirectory() + "/token.txt");
 
             // log in!
-            await client.LoginAsync(TokenType.Bot, token);
+            if (client.LoginState == LoginState.LoggedOut)
+                await client.LoginAsync(TokenType.Bot, token);
             await client.StartAsync();
             Console.WriteLine("successfully logged in!");
 
@@ -107,7 +108,6 @@ namespace OSFMServerBanlogBot
         private static async Task Disconnected(Exception ex)
         {
             Console.WriteLine($"\n\nDisconnected! Exception:\n==============\n{ex}\n==============\nAttempting to reconnect.\n");
-            await client.StopAsync();
             await Login();
         }
     }
