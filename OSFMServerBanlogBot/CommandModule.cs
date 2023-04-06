@@ -42,13 +42,13 @@ namespace OSFMServerBanlogBot
         // this just goes through the audit log and selects entries it missed, in the case that it crashed overnight or something
         [Command("resync")]
         [RequiredPermissions(GuildPermission.ViewAuditLog | GuildPermission.BanMembers | GuildPermission.KickMembers)]
-        public async Task Resync()
+        public async Task Resync(int cases = 100)
         {
             try
             {
                 int addedCases = 0;
 
-                await foreach (var v in Context.Guild.GetAuditLogsAsync(100))
+                await foreach (var v in Context.Guild.GetAuditLogsAsync(cases))
                 {
                     foreach (var logEntry in v.Where((RestAuditLogEntry r) => r.Action == ActionType.Ban || r.Action == ActionType.Unban
                         || r.Action == ActionType.Kick))
