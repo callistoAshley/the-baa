@@ -74,7 +74,7 @@ namespace OSFMServerBanlogBot
             {
                 // check whether the command has the right prefix
                 int prefixPos = 0;
-                if (!(message as SocketUserMessage).HasStringPrefix("baa ", ref prefixPos)) return;
+                if (!(message as SocketUserMessage).HasStringPrefix("baa; ", ref prefixPos)) return;
 
                 Console.WriteLine($"{message.Author} executing command {message.Content}");
 
@@ -107,7 +107,13 @@ namespace OSFMServerBanlogBot
 
         private static async Task Disconnected(Exception ex)
         {
-            Console.WriteLine($"\n\nDisconnected! Exception:\n==============\n{ex}\n==============\nAttempting to reconnect.\n");
+            // can't recover from these
+            if (ex is OperationCanceledException || ex is TaskCanceledException)
+            {
+                Console.WriteLine($"{ex}\nadios");
+                Environment.Exit(1);
+            }
+            Console.WriteLine($"Disconnected! Exception:\n==============\n{ex}\n==============\nAttempting to reconnect.");
             await Login();
         }
     }
