@@ -6,6 +6,6 @@ namespace OSFMServerBanlogBot
 {
     public static class Constants
     {
-        public const string VERSION = "beta 1.3.b";
+        public const string VERSION = "beta 1.3.c";
     }
 }
