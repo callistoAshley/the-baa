@@ -107,14 +107,8 @@ namespace OSFMServerBanlogBot
 
         private static async Task Disconnected(Exception ex)
         {
-            // can't recover from these
-            if (ex is OperationCanceledException || ex is TaskCanceledException)
-            {
-                Console.WriteLine($"{ex}\nadios");
-                Environment.Exit(1);
-            }
-            Console.WriteLine($"Disconnected! Exception:\n==============\n{ex}\n==============\nAttempting to reconnect.");
-            await Login();
+            Console.WriteLine($"Disconnected! Exception:\n==============\n{ex}\n==============\nExiting :(");
+            Environment.Exit(1);
         }
     }
 }
